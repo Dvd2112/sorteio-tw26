@@ -247,6 +247,7 @@
   async function start() {
     if (busy || !pool().length) return;
     busy = true;
+    document.body.classList.add('focus');   // oculta tudo menos a pista
     render();
     el.result.hidden = true;
 
@@ -330,7 +331,11 @@
   el.qty.addEventListener('input', render);
   el.remove.addEventListener('change', render);
   el.draw.addEventListener('click', start);
-  el.resultClose.addEventListener('click', () => { el.result.hidden = true; showIdle(); });
+  el.resultClose.addEventListener('click', () => {
+    el.result.hidden = true;
+    document.body.classList.remove('focus');
+    showIdle();
+  });
   el.clear.addEventListener('click', () => { winners = []; render(); });
   el.mute.addEventListener('click', () => {
     muted = !muted;

@@ -166,3 +166,8 @@ textarea {
 @media (prefers-reduced-motion: reduce) {
   .track.racing, .racing .duck svg, .idle .duck svg, .trophy { animation: none; }
 }
+
+/* modo corrida: só o rio e o sorteio */
+body.focus .top, body.focus h1, body.focus .sub, body.focus .controls, body.focus .grid { display: none; }
+body.focus .wrap { max-width: none; padding: 16px; }
+body.focus { --track-h: max(380px, calc(100vh - 100px)); }
