@@ -89,7 +89,7 @@ h3 { font-family: 'Anton', sans-serif; font-weight: 400; text-transform: upperca
   padding: 1px 7px; border-radius: 6px; background: rgba(0, 0, 0, .8); border: 1px solid var(--border);
 }
 .duck.show { z-index: 4; }
-.duck.show .tag, .all-tags .tag { display: block; }
+.duck.show .tag { display: block; }
 .duck.lead .tag { background: var(--neon); border-color: var(--accent); }
 .medal { position: absolute; right: -6px; top: -16px; font-size: 22px; animation: pop .5s ease; z-index: 5; }
 

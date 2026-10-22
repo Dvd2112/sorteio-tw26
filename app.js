@@ -1,8 +1,7 @@
 (() => {
   const STORAGE_KEY = 'tw26_sorteio';
-  const MAX_DUCKS = 400;      // patos na pista (todos os premiados entram); o resultado é sorteado antes, a pista é só o show
+  const MAX_DUCKS = 25;       // patos na pista (todos os premiados entram); o resultado é sorteado antes, a pista é só o show
   const ROW_MIN = 16;         // altura mínima de cada "fileira" da pista, em px
-  const ALL_TAGS_UP_TO = 12;  // até esse total, todos os patos mostram o nome
   const DEFAULT_SECONDS = 10; // duração padrão da corrida (tempo do 1º colocado)
   const COLORS = ['#ffd23f', '#ff6b6b', '#4ecdc4', '#bf40ff', '#6bcb77', '#4d96ff', '#ff9f1c', '#f368e0', '#ffffff', '#a0e7e5'];
   const MEDALS = ['🥇', '🥈', '🥉'];
@@ -122,7 +121,7 @@
     const duckH = Math.max(12, Math.min(46, rowH * 1.7));
     const duckW = duckH * (76 / 52);
 
-    el.track.className = `track${idle ? ' idle' : ''}${N > 40 ? ' dense' : ''}${N <= ALL_TAGS_UP_TO ? ' all-tags' : ''}`;
+    el.track.className = `track${idle ? ' idle' : ''}`;
     el.track.style.setProperty('--duck-h', `${duckH}px`);
     el.track.style.setProperty('--duck-w', `${duckW}px`);
     el.track.innerHTML = `<div class="run">${list.map((l, i) => `
@@ -227,8 +226,8 @@
           d.duck.style.left = `${d.last * 100}%`;
         });
 
-        // os 3 da frente mostram o nome
-        const top = ducks.slice().sort((a, b) => b.last - a.last).slice(0, 3);
+        // só quem está na frente mostra o nome
+        const top = ducks.slice().sort((a, b) => b.last - a.last).slice(0, 1);
         const keep = new Set(top);
         shown.forEach((d) => { if (!keep.has(d) && !(d.done && d.rank < n)) { d.duck.classList.remove('show'); shown.delete(d); } });
         top.forEach((d) => { d.duck.classList.add('show'); shown.add(d); });
