@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Corrida de Patos · TechWeek 2026</title>
+  <link rel="icon" href="assets/logo.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <img src="assets/logo.png" alt="TechWeek 2026" class="logo">
+    <button id="mute" class="btn ghost small" aria-pressed="false" title="Ligar/desligar som">🔊 Som</button>
+  </header>
+
+  <main class="wrap">
+    <h1>Corrida de <span>Patos</span></h1>
+    <p class="sub">Cada participante vira um pato. Quem cruzar a linha de chegada primeiro leva o prêmio.</p>
+
+    <section class="race" id="race">
+      <div class="hud">
+        <span id="hud-left">Pronto para largar</span>
+        <span id="hud-leader" class="leader"></span>
+      </div>
+      <div class="track" id="track"></div>
+      <div class="overlay" id="countdown" hidden><span id="count-text">3</span></div>
+
+      <div class="overlay result" id="result" hidden>
+        <div class="result-card">
+          <div class="trophy">🏆</div>
+          <h2 id="result-title">Vencedor</h2>
+          <ol id="result-list"></ol>
+          <button id="result-close" class="btn">Continuar</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="controls">
+      <label class="field">Premiados
+        <input type="number" id="qty" min="1" value="1">
+      </label>
+      <label class="check">
+        <input type="checkbox" id="remove" checked> Ganhador não participa de novo
+      </label>
+      <button id="draw" class="btn big">🏁 Largar!</button>
+      <span id="note" class="muted"></span>
+    </div>
+
+    <div class="grid">
+      <section class="card">
+        <h3>Participantes</h3>
+        <textarea id="names" rows="12" placeholder="Maria da Silva&#10;João Souza&#10;Ana Lima"></textarea>
+        <div class="row">
+          <label class="btn ghost">
+            Importar CSV/TXT
+            <input type="file" id="file" accept=".csv,.txt" hidden>
+          </label>
+          <span id="count" class="muted"></span>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="head">
+          <h3>Ganhadores (<span id="wcount">0</span>)</h3>
+          <span>
+            <button id="copy" class="btn ghost small">Copiar</button>
+            <button id="clear" class="btn ghost small">Limpar</button>
+          </span>
+        </div>
+        <p id="empty" class="muted">Nenhum ganhador ainda.</p>
+        <ol id="list"></ol>
+      </section>
+    </div>
+  </main>
+
+  <canvas id="confetti"></canvas>
+  <script src="app.js"></script>
+</body>
+</html>
