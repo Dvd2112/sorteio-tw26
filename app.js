@@ -250,6 +250,8 @@
     document.body.classList.add('focus');   // oculta tudo menos a pista
     render();
     el.result.hidden = true;
+    try { await el.race.requestFullscreen?.(); } catch { /* segue com a sobreposição em CSS */ }
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));   // espera o layout assentar
 
     const race = setup();
     buildTrack(race.lanes, false);
@@ -334,6 +336,7 @@
   el.resultClose.addEventListener('click', () => {
     el.result.hidden = true;
     document.body.classList.remove('focus');
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     showIdle();
   });
   el.clear.addEventListener('click', () => { winners = []; render(); });
@@ -363,6 +366,7 @@
     el.remove.checked = s.remove ?? true;
     el.dur.value = s.dur ?? DEFAULT_SECONDS;
   } catch { /* ignora */ }
+  el.race.appendChild(el.confetti);   // dentro da corrida, para aparecer em tela cheia
   showIdle();
   render();
 })();
