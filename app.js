@@ -1,14 +1,15 @@
 (() => {
   const STORAGE_KEY = 'tw26_sorteio';
-  const MAX_LANES = 10;       // raias na pista; o resultado é sorteado antes, a pista é só o show
-  const BASE_MS = 8000;       // tempo do 1º colocado
-  const GAP_MS = 480;         // diferença entre colocações
+  const MAX_DUCKS = 400;      // patos na pista (todos os premiados entram); o resultado é sorteado antes, a pista é só o show
+  const ROW_MIN = 16;         // altura mínima de cada "fileira" da pista, em px
+  const ALL_TAGS_UP_TO = 12;  // até esse total, todos os patos mostram o nome
+  const DEFAULT_SECONDS = 10; // duração padrão da corrida (tempo do 1º colocado)
   const COLORS = ['#ffd23f', '#ff6b6b', '#4ecdc4', '#bf40ff', '#6bcb77', '#4d96ff', '#ff9f1c', '#f368e0', '#ffffff', '#a0e7e5'];
   const MEDALS = ['🥇', '🥈', '🥉'];
 
   const $ = (id) => document.getElementById(id);
   const el = {
-    names: $('names'), file: $('file'), count: $('count'), qty: $('qty'), remove: $('remove'),
+    names: $('names'), file: $('file'), count: $('count'), qty: $('qty'), dur: $('dur'), remove: $('remove'),
     draw: $('draw'), copy: $('copy'), clear: $('clear'), wcount: $('wcount'), empty: $('empty'),
     list: $('list'), confetti: $('confetti'), track: $('track'), race: $('race'),
     hudLeft: $('hud-left'), hudLeader: $('hud-leader'), countdown: $('countdown'), countText: $('count-text'),
@@ -113,25 +114,32 @@
   }
 
   /* ---------- pista ---------- */
-  function buildTrack(lanes, idle) {
-    el.track.className = `track${idle ? ' idle' : ''}`;
-    el.track.innerHTML = lanes.map((l, i) => `
-      <div class="lane" data-i="${i}">
-        <div class="lane-name"><b>${esc(l.name)}</b></div>
-        <div class="water"><div class="run">
-          <div class="duck">${duckSvg(COLORS[i % COLORS.length])}</div>
-        </div></div>
-      </div>`).join('');
-    const laneEls = [...el.track.querySelectorAll('.lane')];
-    lanes.forEach((l, i) => {
-      l.lane = laneEls[i];
-      l.duck = laneEls[i].querySelector('.duck');
-      l.nameEl = laneEls[i].querySelector('.lane-name');
+  function buildTrack(list, idle) {
+    const N = list.length;
+    const H = el.track.clientHeight || 440;
+    const rows = Math.max(1, Math.min(N, Math.floor(H / ROW_MIN)));
+    const rowH = H / rows;
+    const duckH = Math.max(12, Math.min(46, rowH * 1.7));
+    const duckW = duckH * (76 / 52);
+
+    el.track.className = `track${idle ? ' idle' : ''}${N > 40 ? ' dense' : ''}${N <= ALL_TAGS_UP_TO ? ' all-tags' : ''}`;
+    el.track.style.setProperty('--duck-h', `${duckH}px`);
+    el.track.style.setProperty('--duck-w', `${duckW}px`);
+    el.track.innerHTML = `<div class="run">${list.map((l, i) => `
+      <div class="duck">${duckSvg(COLORS[i % COLORS.length])}<span class="tag">${esc(l.name)}</span></div>`).join('')}</div>`;
+
+    const duckEls = el.track.querySelectorAll('.duck');
+    list.forEach((l, i) => {
+      const row = i % rows;
+      const jitter = rows < N ? (randomInt(1001) / 1000 - 0.5) * rowH * 0.8 : 0;
+      const top = Math.min(Math.max(row * rowH + (rowH - duckH) / 2 + jitter, 0), H - duckH);
+      l.duck = duckEls[i];
+      l.duck.style.top = `${top}px`;
     });
   }
 
   function showIdle() {
-    const demo = Array.from({ length: 5 }, (_, i) => ({ name: `Pato ${i + 1}` }));
+    const demo = Array.from({ length: 6 }, (_, i) => ({ name: `Pato ${i + 1}` }));
     buildTrack(demo, true);
     el.hudLeft.textContent = 'Pronto para largar';
     el.hudLeader.textContent = '';
@@ -161,34 +169,38 @@
   function setup() {
     const candidates = pool();
     const n = Math.min(Math.max(parseInt(el.qty.value, 10) || 1, 1), candidates.length);
-    const laneCount = Math.min(candidates.length, Math.max(MAX_LANES, n));
-    const picked = sample(candidates, laneCount);     // [0..n) = premiados, em ordem de chegada
+    const total = Math.min(candidates.length, Math.max(MAX_DUCKS, n));
+    const picked = sample(candidates, total);          // [0..n) = premiados, em ordem de chegada
+    const seconds = Math.min(Math.max(parseFloat(el.dur.value) || DEFAULT_SECONDS, 3), 180);
+    const BASE_MS = seconds * 1000;
+    const GAP_MS = Math.min(seconds * 60, 1500);       // diferença entre colocações
+    const lastWinnerT = BASE_MS + (n - 1) * GAP_MS + GAP_MS * 0.3;
 
     const ducks = picked.map((name, rank) => ({
       name, rank,
-      T: BASE_MS + rank * GAP_MS + rand(0, GAP_MS * 0.3),
+      T: rank < n ? BASE_MS + rank * GAP_MS + rand(0, GAP_MS * 0.3) : lastWinnerT + GAP_MS + rand(0, 3000),
       a1: rand(0.04, 0.09), f1: rand(1.5, 3.5), p1: rand(0, 6.28),
       a2: rand(0.02, 0.05), f2: rand(4, 7), p2: rand(0, 6.28),
       last: 0, done: false,
     }));
 
-    // embaralha em qual raia cada pato fica, para o vencedor não ser sempre o da mesma raia
+    // embaralha a ordem de desenho, para o vencedor não cair sempre na mesma fileira
     const lanes = sample(ducks, ducks.length);
     return { ducks, lanes, n };
   }
 
-  function runRace({ ducks, lanes, n }) {
+  function runRace({ ducks, n }) {
     return new Promise((resolve) => {
-      let finished = 0;
+      let winnersDone = 0;
+      let shown = new Set();
       let leaderName = '';
       const t0 = performance.now();
       el.track.classList.add('racing');
-      el.hudLeft.textContent = `${lanes.length} patos na pista`;
+      el.hudLeft.textContent = `${ducks.length} patos na pista`;
       let quackAt = 0;
 
       (function frame(now) {
         const t = now - t0;
-        let best = null;
 
         ducks.forEach((d) => {
           if (d.done) return;
@@ -199,14 +211,15 @@
           if (x >= 1) {
             d.last = 1;
             d.done = true;
-            finished += 1;
             d.duck.classList.add('done');
             if (d.rank < n) {
+              winnersDone += 1;
               const badge = document.createElement('span');
               badge.className = 'medal';
               badge.textContent = MEDALS[d.rank] ?? `#${d.rank + 1}`;
               d.duck.appendChild(badge);
-              d.lane.classList.add('win');
+              d.duck.classList.add('show');
+              shown.add(d);
               quack(0, 1 + (n - d.rank) * 0.02);
               if (d.rank === 0) launchConfetti(70);
             }
@@ -214,15 +227,19 @@
           d.duck.style.left = `${d.last * 100}%`;
         });
 
-        ducks.forEach((d) => { if (!best || d.last > best.last) best = d; });
-        if (best.name !== leaderName) {
-          leaderName = best.name;
-          lanes.forEach((l) => l.lane.classList.toggle('lead', l === best));
+        // os 3 da frente mostram o nome
+        const top = ducks.slice().sort((a, b) => b.last - a.last).slice(0, 3);
+        const keep = new Set(top);
+        shown.forEach((d) => { if (!keep.has(d) && !(d.done && d.rank < n)) { d.duck.classList.remove('show'); shown.delete(d); } });
+        top.forEach((d) => { d.duck.classList.add('show'); shown.add(d); });
+        ducks.forEach((d) => d.duck.classList.toggle('lead', d === top[0] && winnersDone === 0));
+        if (top[0].name !== leaderName && winnersDone === 0) {
+          leaderName = top[0].name;
           el.hudLeader.textContent = `🏃 Na frente: ${leaderName}`;
         }
-        if (now - quackAt > 1400 && finished === 0) { quackAt = now; quack(0, rand(0.9, 1.3)); }
+        if (now - quackAt > 1400 && winnersDone === 0) { quackAt = now; quack(0, rand(0.9, 1.3)); }
 
-        if (finished < ducks.length) requestAnimationFrame(frame);
+        if (winnersDone < n) requestAnimationFrame(frame);
         else resolve();
       })(t0);
     });
@@ -286,7 +303,7 @@
   /* ---------- estado / UI ---------- */
   function save() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ text: el.names.value, winners, remove: el.remove.checked }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ text: el.names.value, winners, dur: el.dur.value, remove: el.remove.checked }));
     } catch { /* storage indisponível */ }
   }
 
@@ -295,10 +312,10 @@
     const available = pool().length;
     el.count.textContent = `${total} participantes · ${available} disponíveis`;
     el.draw.disabled = busy || !available;
-    [el.names, el.qty, el.remove, el.clear].forEach((x) => { x.disabled = busy; });
+    [el.names, el.qty, el.dur, el.remove, el.clear].forEach((x) => { x.disabled = busy; });
     el.qty.max = Math.max(available, 1);
-    el.note.textContent = available > MAX_LANES
-      ? `A pista mostra ${Math.max(MAX_LANES, parseInt(el.qty.value, 10) || 1)} patos; todos os ${available} concorrem ao prêmio.`
+    el.note.textContent = available > MAX_DUCKS
+      ? `A pista mostra ${MAX_DUCKS} patos; todos os ${available} concorrem ao prêmio.`
       : '';
     el.wcount.textContent = winners.length;
     el.empty.hidden = winners.length > 0;
@@ -340,6 +357,7 @@
     el.names.value = s.text ?? '';
     winners = s.winners ?? [];
     el.remove.checked = s.remove ?? true;
+    el.dur.value = s.dur ?? DEFAULT_SECONDS;
   } catch { /* ignora */ }
   showIdle();
   render();
